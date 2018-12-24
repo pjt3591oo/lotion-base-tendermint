@@ -1,6 +1,6 @@
 # install
 
-* cline
+* clone
 
 ```
 $ https://github.com/pjt3591oo/lotion-base-tendermint.git
@@ -26,7 +26,7 @@ $ npm i
 $ init.sh
 ```
 
-해당 프로젝트에 `config` 디렉토리가 생성되면서 다음 파일들이 생성됨
+해당 프로젝트에 `config` 디렉토리가 생성된 후 다음 파일들이 생성됨
 
 * config.toml
 * genesis.json
