@@ -1,4 +1,6 @@
-# install
+# 네트워크 구동
+
+## install
 
 * clone
 
@@ -20,7 +22,7 @@ $ npm install -g ts-node
 $ npm i
 ```
 
-# create genesis
+## create genesis
 
 ```
 $ init.sh
@@ -33,7 +35,7 @@ $ init.sh
 * node_key.json
 * priv_validator.json
 
-# start blockchain
+## start blockchain
 
 ```
 $ ts-node ./src/app.ts
@@ -61,7 +63,7 @@ AppInfo {
 
 이때는 `init.sh`를 다시 실행하여 `genesis.json`을 다시 생성하여 `./src/app.ts`를 실행하거나 `~/.lotion/notworks`디렉터리에 있는 체인데이터들을 지워주면 됩니다.
 
-# transaction by client
+## transaction by client
 
 * client.js
 
@@ -87,9 +89,109 @@ let GCI = '9afb7630408b54f9f56eb810316564460b189b8d91d936ecdb9373603d97ca64';
 
 GCI는 앞에서 app.ts를 실행하고 터미널에 출력되는 GCI를 입력합니다.
 
-참고로 genesis.json과 node_key.json이 같으면 GCI는 동일합니다.
+> 참고 genesis.json과 node_key.json이 같으면 GCI는 동일합니다.
 
 ```bash
 $ node client.js
 ```
 
+# 코드리뷰
+
+해당 프로그램은 3개의 파일로 구성됩니다.
+
+* app.ts: 노드 설정관리
+
+* middleware.ts: message 종류(type)에 따라 transaction 처리
+
+* state.ts: 상태관리
+
+
+## app.ts
+
+노드에 사용되는 포트, 각종 파일들을 설정한 후 middleware.ts를 미들웨어에 등록 후 실행
+
+## middleware.ts
+
+message 타입에 따라 라우팅 설정
+
+* 타입정의
+
+```javascript
+export enum TxType {
+  ADD = 'ADD',
+  COMPLETE = 'COMPLETE',
+  UNDO_COMPLETE = 'UNDO-COMPLETE',
+}
+```
+
+해당 프로젝트에서 사용하는 타입
+
+* 타입에 따라 핸들러 등록
+
+```javascript
+const createTxMiddleware = (txTypeHandlers: TxTypeToHandler, fallbackHandler?: TxHandler): Middleware =>
+  ({
+    type: MiddlewareType.TX,
+    middleware: (state, tx, chainInfo) => {
+      const txType = tx.type;
+      const handler = txTypeHandlers[txType] || fallbackHandler;
+      if (handler) {
+        Array.isArray(handler)
+          ? handler.forEach(h => h(state, tx, chainInfo))
+          : handler(state, tx, chainInfo);
+      }
+    },
+  });
+
+export const txMiddleware = createTxMiddleware({
+  [TxType.ADD]: add,
+  [TxType.COMPLETE]: complete,
+  [TxType.UNDO_COMPLETE]: undoComplete,
+}, (state, tx, chainInfo) => {
+  console.log(JSON.stringify({ tx, chainInfo }, null, 2));
+  return new Error('no handler for tx');
+});
+```
+
+* 핸들러 생성
+
+```javascript
+const add: TxHandler<{ title: string }> = (state, { payload }) => {
+  console.log(state)
+  console.log(payload)
+  if (!payload || typeof payload.title !== 'string') return;
+
+  const item = { title: payload.title, completed: false, timestamp: Date.now() };
+  state.items.push(item);
+};
+
+const toggleTo = (completed): TxHandler<{ index: number }> => (state, { payload }) => {
+  if (!payload || typeof payload.index !== 'number') return;
+
+  const item = state.items[payload.index];
+  item.completed = completed;
+};
+
+const complete = toggleTo(true);
+
+const undoComplete = toggleTo(false);
+```
+
+## state.ts
+
+state.ts는 해당 블록체인에서 관리하는 데이터 인터페이스를 정의합니다.
+
+```javascript
+export interface State {
+items: Item[];
+}
+
+export interface Item {
+title: string;
+completed: boolean;
+timestamp: number;
+}
+
+const initialState: State = { items: [] };
+export default initialState;
+```
