@@ -124,7 +124,41 @@ export enum TxType {
 }
 ```
 
-해당 프로젝트에서 사용하는 타입
+* 핸들러 생성
+
+```javascript
+const add: TxHandler<{ title: string }> = (state, { payload }) => {
+  console.log(state)
+  console.log(payload)
+  if (!payload || typeof payload.title !== 'string') return;
+
+  const item = { title: payload.title, completed: false, timestamp: Date.now() };
+  state.items.push(item);
+};
+
+const toggleTo = (completed): TxHandler<{ index: number }> => (state, { payload }) => {
+  if (!payload || typeof payload.index !== 'number') return;
+
+  const item = state.items[payload.index];
+  item.completed = completed;
+};
+
+const complete = toggleTo(true);
+
+const undoComplete = toggleTo(false);
+```
+
+해당 프로젝트에서 사용하는 타입과 핸들러를 정의합니다. 
+
+여기서 메시지 타입이란 앞의 `client.js` 프로그램에서 다음과 같은 부분이 있습니다.
+
+```javascript
+let result = await send({ type: "ADD", payload: {"title": "test"} }) // transaction 발생
+```
+
+여기서 type을 의미합니다.
+
+해당 블록체인 어플리케이션은 type에 따라 트랜잭션 처리를 합니다. 
 
 * 타입에 따라 핸들러 등록
 
@@ -151,30 +185,6 @@ export const txMiddleware = createTxMiddleware({
   console.log(JSON.stringify({ tx, chainInfo }, null, 2));
   return new Error('no handler for tx');
 });
-```
-
-* 핸들러 생성
-
-```javascript
-const add: TxHandler<{ title: string }> = (state, { payload }) => {
-  console.log(state)
-  console.log(payload)
-  if (!payload || typeof payload.title !== 'string') return;
-
-  const item = { title: payload.title, completed: false, timestamp: Date.now() };
-  state.items.push(item);
-};
-
-const toggleTo = (completed): TxHandler<{ index: number }> => (state, { payload }) => {
-  if (!payload || typeof payload.index !== 'number') return;
-
-  const item = state.items[payload.index];
-  item.completed = completed;
-};
-
-const complete = toggleTo(true);
-
-const undoComplete = toggleTo(false);
 ```
 
 ## state.ts
